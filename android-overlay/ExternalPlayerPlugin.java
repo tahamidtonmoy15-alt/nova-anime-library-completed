@@ -59,15 +59,26 @@ public class ExternalPlayerPlugin extends Plugin {
     public void open(PluginCall call) {
         try {
             File f = new File(dir(), safe(call.getData().optString("name")));
+            if (!f.isFile() || f.length() == 0) {
+                call.reject("Video file was not copied to app storage.");
+                return;
+            }
             Uri u = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
-            String mime = call.getData().optString("mime", "video/*");
-            if (mime.isEmpty()) mime = "video/*";
+            String mime = call.getData().optString("mime", "");
+            if (mime == null || mime.isEmpty() || "application/octet-stream".equals(mime)) {
+                String n = f.getName().toLowerCase();
+                if (n.endsWith(".mkv")) mime = "video/x-matroska";
+                else if (n.endsWith(".webm")) mime = "video/webm";
+                else if (n.endsWith(".mov")) mime = "video/quicktime";
+                else if (n.endsWith(".3gp")) mime = "video/3gpp";
+                else mime = "video/mp4";
+            }
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(u, mime);
-            i.putExtra("title", call.getData().optString("title"));
-            i.setClipData(ClipData.newRawUri("", u));
+            i.putExtra(Intent.EXTRA_TITLE, call.getData().optString("title"));
+            i.setClipData(ClipData.newRawUri("video", u));
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            getActivity().startActivity(i);
+            getActivity().startActivity(Intent.createChooser(i, "Open video with"));
             call.resolve();
         } catch (ActivityNotFoundException e) {
             call.reject("No compatible video player was found.");

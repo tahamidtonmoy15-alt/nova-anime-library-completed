@@ -1,0 +1,64 @@
+name: Anime File Manager - Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Generate Android project
+        run: npx cap add android
+
+      - name: Add native external-player plugin
+        run: |
+          PKG=android/app/src/main/java/com/hda/anime
+          mkdir -p "$PKG"
+          cp android-overlay/ExternalPlayerPlugin.java android-overlay/MainActivity.java "$PKG/"
+          mkdir -p android/app/src/main/res/xml
+          cp android-overlay/file_paths.xml android/app/src/main/res/xml/file_paths.xml
+          python3 android-overlay/add_provider.py
+          grep -n "androidx.core.content.FileProvider" android/app/src/main/AndroidManifest.xml
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Anime-File-Manager.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: anime-file-manager-apk
+          path: Anime-File-Manager.apk
+          if-no-files-found: error
+          retention-days: 30

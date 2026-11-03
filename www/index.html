@@ -187,10 +187,10 @@ function loadEp(){const e=plList[plIdx];if(!e)return;if(plUrl)URL.revokeObjectUR
  v.onended=()=>{localStorage.setItem('hda_pct_'+e.id,100);localStorage.removeItem('hda_pos_'+e.id);stepEp(1)}}
 function stepEp(d){if(plList[plIdx+d]){plIdx+=d;loadEp()}}
 function closePlayer(){const v=$('vid');v.pause();v.removeAttribute('src');v.load();if(plUrl)URL.revokeObjectURL(plUrl);plUrl='';$('plBg').style.display='none';render();drawFolder&&fmAnime&&drawFolder()}
-const NP=(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())?Capacitor.registerPlugin('ExternalPlayer'):null;
+const NP=(()=>{try{const C=window.Capacitor;if(!C||!C.isNativePlatform||!C.isNativePlatform())return null;return (C.Plugins&&C.Plugins.ExternalPlayer)||(typeof C.registerPlugin==='function'?C.registerPlugin('ExternalPlayer'):null)}catch(_){return null}})();
 const b64of=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(b)});
 async function shareEp(){const e=plList[plIdx];if(!e)return;const v=$('vid');v.pause();const msg=$('plMsg');
- if(NP){try{const ext=(e.type.includes('matroska')?'mkv':e.type.includes('webm')?'webm':'mp4'),name=e.id+'.'+ext;
+ if(NP){try{const mime=(e.type||'').toLowerCase();const ext=(mime.includes('matroska')||/\.mkv$/i.test(e.title)?'mkv':mime.includes('webm')||/\.webm$/i.test(e.title)?'webm':mime.includes('quicktime')||/\.mov$/i.test(e.title)?'mov':mime.includes('3gpp')||/\.3gp$/i.test(e.title)?'3gp':'mp4'),name=e.id+'.'+ext;
    const ck=await NP.check({name,size:e.size});
    if(!ck.exists){const CH=3*1024*1024;for(let o=0;o<e.size;o+=CH){msg.textContent='Player-এর জন্য তৈরি হচ্ছে… '+Math.round(o/e.size*100)+'%';await NP.write({name,data:await b64of(e.blob.slice(o,o+CH)),append:o>0})}}
    msg.textContent='';await NP.open({name,mime:e.type||'video/*',title:e.title})}
